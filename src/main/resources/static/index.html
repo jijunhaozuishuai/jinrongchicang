@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>A股行情助手</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; height: 100vh; margin: 0; padding-top: 20px;}
+        .chat-container { width: 500px; height: 700px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .chat-header { background: #2c3e50; color: white; padding: 15px; text-align: center; font-weight: bold; }
+        .chat-box { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { max-width: 80%; padding: 10px 15px; border-radius: 10px; word-wrap: break-word; white-space: pre-wrap; }
+        .user { align-self: flex-end; background: #3498db; color: white; }
+        .ai { align-self: flex-start; background: #ecf0f1; color: #333; }
+        .error { align-self: flex-start; background: #ffeded; color: #e74c3c; border: 1px solid #e74c3c; }
+        .input-area { display: flex; padding: 10px; border-top: 1px solid #ddd; }
+        .input-area input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+        .input-area button { margin-left: 10px; padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="chat-container">
+    <div class="chat-header">🤖 A股行情助手</div>
+    <div class="chat-box" id="chat-box"></div>
+    <div class="input-area">
+        <input type="text" id="user-input" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="请输入您的问题...">
+        <button onclick="sendMessage()">发送</button>
+    </div>
+</div>
+<script>
+    // 1. 修改了 API_BASE，明确指向本地 Java 服务
+    const API_BASE = 'http://localhost:8080';
+
+    let sessionId = localStorage.getItem("chat_session_id") || "user_" + Math.random().toString(36).substring(2, 8);
+    localStorage.setItem("chat_session_id", sessionId);
+    const chatBox = document.getElementById('chat-box');
+
+    async function sendMessage() {
+        const inputEl = document.getElementById('user-input');
+        const message = inputEl.value.trim();
+        if (!message) return;
+        inputEl.value = '';
+
+        // 显示用户消息
+        appendMessage(message, 'user');
+
+        // 显示 AI 的初始占位
+        const aiMessageDiv = appendMessage('...', 'ai');
+        aiMessageDiv.innerText = ''; // 清空 "..." 准备接收
+
+        let isStreaming = false;
+
+        try {
+            const response = await fetch(`${API_BASE}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // 2. 在请求体里加入了 userId: "u1"
+                body: JSON.stringify({
+                    message: message,
+                    sessionId: sessionId,
+                    userId: "u1"
+                })
+            });
+
+            // 检查 HTTP 状态码，如果后端直接挂了(比如 500)，在这里拦截
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                let idx;
+                while ((idx = buffer.indexOf('\n\n')) >= 0) {
+                    const raw = buffer.slice(0, idx);
+                    buffer = buffer.slice(idx + 2);
+                    const lines = raw.split('\n');
+                    let evt = '', data = '';
+                    for (let line of lines) {
+                        if (line.startsWith('event:')) evt = line.slice(6).trim();
+                        if (line.startsWith('data:')) data += line.slice(5).trim();
+                    }
+
+                    // 处理收到正常的文本块
+                    if (evt === 'chunk') {
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.content) {
+                                aiMessageDiv.innerText += parsed.content;
+                                isStreaming = true;
+                            }
+                        } catch (e) {
+                            console.error('JSON解析失败:', data);
+                        }
+                    }
+                    // 处理后端传回来的自定义错误 (比如 Python 报错了)
+                    else if (evt === 'error') {
+                        console.error('后端返回错误:', data);
+                        try {
+                            const parsed = JSON.parse(data);
+                            aiMessageDiv.innerText += `\n[错误]: ${parsed.message || data}`;
+                        } catch (e) {
+                            aiMessageDiv.innerText += `\n[错误]: ${data}`;
+                        }
+                        aiMessageDiv.classList.remove('ai');
+                        aiMessageDiv.classList.add('error');
+                    }
+                }
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            // 如果流结束了，但一个字都没收到
+            if (!isStreaming && aiMessageDiv.innerText === '') {
+                aiMessageDiv.innerText = '[系统提示]: 后端未返回内容，请检查控制台日志。';
+            }
+
+        } catch (e) {
+            console.error(e);
+            aiMessageDiv.innerText = `[网络或服务异常]: ${e.message}`;
+            aiMessageDiv.classList.remove('ai');
+            aiMessageDiv.classList.add('error');
+        }
+    }
+
+    function appendMessage(text, role) {
+        const div = document.createElement('div');
+        div.className = `message ${role}`;
+        div.innerText = text;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return div;
+    }
+</script>
+</body>
+</html>

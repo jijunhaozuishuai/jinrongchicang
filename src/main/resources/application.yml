@@ -1,0 +1,26 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: a-share-agent-bff
+  datasource:
+    # 连你建好表的 finance_db 库
+    url: jdbc:postgresql://localhost:5432/finance_db
+    username: postgres
+    # 👇 把这里改成 123456
+    password: 123456
+  data:
+    redis:
+      host: localhost
+      port: 6379
+app:
+  agent:
+    base-url: http://127.0.0.1:8000
+    stream-path: /internal/agent/stream
+    memory-path: /internal/agent/extract_memory
+    internal-token: change-me-in-prod
+  cache:
+    ttl-seconds: 300
+  chat:
+    max-concurrent: 20
+    history-limit: 10

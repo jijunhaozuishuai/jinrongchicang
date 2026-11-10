@@ -1,0 +1,31 @@
+# ========== Web 框架与基础 ==========
+fastapi
+uvicorn
+pydantic
+python-dotenv
+requests
+httpx
+
+# ========== 数据库与数据处理 ==========
+psycopg2-binary
+sqlalchemy
+pandas
+akshare
+
+# ========== LangChain 与 LangGraph 核心生态 ==========
+langchain
+langchain-core
+langchain-community
+langchain-openai
+langchain-experimental
+langchain-text-splitters
+langgraph
+
+# ========== RAG 混合检索组件 ==========
+faiss-cpu
+rank_bm25
+tavily-python
+jieba
+
+# ========== 监控与追踪 ==========
+langfuse
