@@ -1,0 +1,11 @@
+pluginManagement {
+    repositories {
+        // 优先使用阿里云镜像下载 Gradle 插件
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        // 保留官方源作为备用
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'a-share-agent-bff'

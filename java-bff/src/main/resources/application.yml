@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: a-share-agent-bff
+  datasource:
+    url: jdbc:postgresql://postgres:5432/finance_db
+    username: postgres
+    password: 123456
+  data:
+    redis:
+      host: redis
+      port: 6379
+
+app:
+  agent:
+    base-url: http://python-agent:8000
+    stream-path: /internal/agent/stream
+    memory-path: /internal/agent/extract_memory
+    internal-token: change-me-in-prod
+  cache:
+    ttl-seconds: 300
+  chat:
+    max-concurrent: 20
+    history-limit: 10
